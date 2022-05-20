@@ -1,5 +1,5 @@
 const express = require("express");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const cors = require("cors");
 const app = express();
@@ -23,10 +23,42 @@ async function run() {
     const productCollection = client.db("emaJhon").collection("product");
 
     app.get("/product", async (req, res) => {
+      console.log("query", req.query);
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
       const query = {};
       const cursor = productCollection.find(query);
-      //note:niche amra jdi home ekti nidisto number product show krate cai tahole .limit(10) dibo
-      const products = await cursor.limit(10).toArray();
+      let products;
+      if (page || size) {
+        products = await cursor
+          .skip(page * size)
+          .limit(size)
+          .toArray();
+      } else {
+        //note:niche amra jdi home ekti nidisto number product show krate cai tahole .limit(10) dibo
+        //products = await cursor.limit(10).toArray();
+        products = await cursor.toArray();
+      }
+
+      res.send(products);
+    });
+
+    //page count
+    app.get("/productCount", async (req, res) => {
+      const query = {};
+      const cursor = productCollection.find(query);
+      const count = await productCollection.estimatedDocumentCount();
+      res.send({ count });
+    });
+
+    //use post to get products by id's
+    app.post("/productByKeys", async (req, res) => {
+      const keys = req.body;
+      const ids = keys.map((id) => ObjectId(id));
+      const query = { _id: { $in: ids } };
+      const cursor = productCollection.find(query);
+      const products = await cursor.toArray();
+      console.log(keys);
       res.send(products);
     });
   } finally {
